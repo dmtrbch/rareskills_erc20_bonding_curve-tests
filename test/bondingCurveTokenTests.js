@@ -3,21 +3,49 @@ const { ethers } = require("hardhat");
 const { utils } = ethers;
 const { BigNumber } = ethers;
 
+// const ONE = new BigNumber.from(1);
+// const TWO = new BigNumber.from(2);
+
+/* function sqrt(value) {
+  let z = value.add(ONE).div(TWO);
+  let y = value;
+  while (z.sub(y).isNegative()) {
+    y = z;
+    z = value.div(z).add(z).div(TWO);
+  }
+
+  return y;
+} */
+
 function revertReason(reason) {
   return `VM Exception while processing transaction: reverted with reason string '${reason}'`;
 }
 
 function calculatePurchaseReturn(totalSupply, reserveBalance, depositAmount) {
-  // return totalSupply * (Math.sqrt(1 + depositAmount / reserveBalance) - 1);
+  return totalSupply * (Math.sqrt(1 + depositAmount / reserveBalance) - 1);
+  /* console.log(totalSupply);
+  console.log(reserveBalance);
+  console.log(depositAmount);
+  const depostiDivReserve = depositAmount.div(reserveBalance);
+  console.log(depostiDivReserve);
+  const onePlustDepostiDivReserve = ONE.add(depostiDivReserve);
+  const sqrtOnePlustDepostiDivReserve = sqrt(onePlustDepostiDivReserve);
+  const sqrtOnePlustDepostiDivReserveMinusOne =
+    sqrtOnePlustDepostiDivReserve.sub(ONE);
 
-  totalSupply.mul(2);
+  return totalSupply.mul(sqrtOnePlustDepostiDivReserveMinusOne); */
 }
 
 function calculateSaleReturn(totalSupply, reserveBalance, sellAmount) {
-  const one = new BigNumber.from(1);
-  const two = new BigNumber.from(2);
-  const amountDivSupply = 
-  // return reserveBalance * (1 - Math.pow(1 - sellAmount / totalSupply, 2));
+  return reserveBalance * (1 - Math.pow(1 - sellAmount / totalSupply, 2));
+  /* const amountDivSupply = sellAmount.div(totalSupply);
+  const oneMinusAmountDivSupply = ONE.sub(amountDivSupply);
+  const powerOneMinusAmountDivSupply = oneMinusAmountDivSupply.pow(TWO);
+  const substractOnePowerOneMinusAmountDivSupply = ONE.sub(
+    powerOneMinusAmountDivSupply
+  );
+
+  return reserveBalance.mul(substractOnePowerOneMinusAmountDivSupply); */
 }
 
 describe("BondingCurveToken", function () {
@@ -39,21 +67,27 @@ describe("BondingCurveToken", function () {
 
   describe("BondingCurveToken: mint - buyTokens", async function () {
     it("should allow minting/buying new tokens with ETH", async function () {
-      const tx = await bondingCurveTokenContract.mint({
-        value: ethers.utils.parseEther("1"),
+      const depositAmount = 1;
+      const tx = await bondingCurveTokenContract.connect(accounts[1]).mint({
+        value: ethers.utils.parseEther(depositAmount.toString()),
       });
       await tx.wait();
 
       const totalSupply = await bondingCurveTokenContract.totalSupply();
       const reserveBalance = await bondingCurveTokenContract.reserveBalance();
 
-      console.log(totalSupply);
-      console.log(reserveBalance);
-      console.log(ethers.utils.parseEther("1"));
+      const purchaseReturn = calculatePurchaseReturn(
+        utils.formatUnits(totalSupply),
+        utils.formatUnits(reserveBalance),
+        depositAmount
+      );
 
       expect(
-        await bondingCurveTokenContract.balanceOf(accounts[0].address)
-      ).to.be.above(new BigNumber.from(0));
+        await bondingCurveTokenContract.balanceOf(accounts[1].address)
+      ).to.be.closeTo(
+        new BigNumber.from(ethers.utils.parseEther(purchaseReturn.toString())),
+        new BigNumber.from(ethers.utils.parseEther(depositAmount.toString()))
+      );
     });
 
     it("should revert if trying to mint/buy tokens withoud sending ETH", async function () {
